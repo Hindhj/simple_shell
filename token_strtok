@@ -1,0 +1,72 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
+
+#define BUFFER_SIZE 1024
+#define ARG_SIZE 64
+
+// Function to check if a file exists
+int file_exists(const char *filename) {
+    return access(filename, F_OK) != -1;
+}
+
+int main(void) {
+    char buffer[BUFFER_SIZE];
+    char *args[ARG_SIZE];
+    int status;
+
+    while (1) {
+        printf("#cisfun$ ");
+        fflush(stdout);
+
+        if (!fgets(buffer, BUFFER_SIZE, stdin)) {
+            printf("\n");
+            break; // Exit on EOF (Ctrl+D)
+        }
+
+        // Remove newline character
+        buffer[strcspn(buffer, "\n")] = '\0';
+
+        // Tokenize the input line without using strtok
+        char *token = buffer;
+        int arg_count = 0;
+        while (*token != '\0' && arg_count < ARG_SIZE - 1) {
+            // Skip leading spaces
+            while (*token == ' ') {
+                token++;
+            }
+            if (*token == '\0') {
+                break; // End of line
+            }
+            args[arg_count++] = token;
+            // Find the end of the token
+            char *end = strchr(token, ' ');
+            if (end != NULL) {
+                *end = '\0'; // Null-terminate the token
+                token = end + 1; // Move to the next token
+            } else {
+                break; // End of line
+            }
+        }
+        args[arg_count] = NULL;
+
+        pid_t pid = fork();
+        if (pid == -1) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        } else if (pid == 0) {
+            // Child process
+            if (execvp(args[0], args) == -1) {
+                perror("execvp");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            // Parent process
+            waitpid(pid, &status, 0);
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
